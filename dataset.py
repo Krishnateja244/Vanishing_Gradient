@@ -1,37 +1,17 @@
-
-
 import numpy as np
-try:
-    import torch
-    import torchvision
-    using_tf = False
-except:
-    from tensorflow.keras.datasets import mnist, cifar10
-    using_tf = True
+import torch
+import torchvision
 import matplotlib.pyplot as plt
-
-def cull_unused_classes(x, y, used_labels):
-    """
-    Removes data x and label y entries for classes not in used_labels. 
-    """    
-    idxs = [ label in used_labels for label in y ]
-    x = x[idxs]
-    y = y[idxs]
-
-    return x, y
-
-def make_successive_labels(y):
-    """
-    Replaces the integers in y such that only successive integers appear. 
-
-    Example: [2 4 4 2 6 2 9 9 4 2] -> [0 1 1 0 2 0 3 3 1 0]
-    """
-    for (new_label, unique_label) in enumerate(np.unique(y)):
-        y[y == unique_label] = new_label    
-
-    return y
+from sklearn.model_selection import train_test_split
 
 def extract_data_from_loader(loader):
+    """
+    Function extracts data from loader
+    Args:
+        loader : pytorch data oader
+    Returns:
+        x,y : image and label of data
+    """
     x = np.array([])
     y = np.array([])
     for curr_batch in loader:
@@ -41,123 +21,95 @@ def extract_data_from_loader(loader):
         else:
             x = np.concatenate([x, curr_batch[0]], axis=0)
             y = np.concatenate([y, curr_batch[1]], axis=0)
-
     return x, y
 
-def get_dataset( dataset = 'mnist', 
-    used_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 
+def get_dataset( dataset = 'mnist',
     training_size = 60000, 
+    validation_size = 5000,
     test_size = 10000,
-    root ="./mnist/"):
+    root = "/home/krishna/Documents/mas_sem_5/dlrv"):
+    
     """ 
-    Reads and converts data from the MNIST dataset. 
-
-    :param  dataset         'mnist' or 'cifar10'
-    :param  used_labels     list of digit classes to include into the returned subset
-    :param  training_size   number of images from training size
-    :param  test_size       number of images from test_size
-
-    :return x_train, y_train, x_test, y_test, class_names    
-      x_train, x_test: training and test images (uint8 [0- 255], shape: training_size x 28 x 28, test_size x 28 x 28),
-      y_train, y_test: corresponding labels (int32 [0 - len(used_labels)), shape: training_size / test_size)
-      class_names: array with names of classes (size: len(used_labels))
+    Reads and converts data from the MNIST/cifar10 dataset. 
+     Args:
+        dataset : 'mnist' or 'cifar10'
+        training_size (int) :  number of images from training size
+        validation_size (int) : number of images from validation size
+        test_size (int) : number of images from test_size
+    Returns:
+         x_train, y_train, x_test, y_test, class_names    
+         x_train, x_test: training and test images
+        y_train, y_test: corresponding labels 
+        class_names: array with names of classes
     """
-
-    num_classes = len(used_labels)
-    max_num_classes = 10
-
-
     np.random.seed(4711)
-
+    
     if dataset == 'mnist':
-        if using_tf:
-            (x_train, y_train),(x_test, y_test) = mnist.load_data() # x_train.shape = 50,000 x 28 x 28
-        else:
-            trainset = torchvision.datasets.MNIST(root=f"{root}/mnist_data", train=True, download=True,
-                                                  transform=torchvision.transforms.ToTensor())
-            trainloader = torch.utils.data.DataLoader(trainset, batch_size=training_size, shuffle=False, num_workers=2)
-            x_train, y_train = extract_data_from_loader(trainloader)
-            x_train = x_train.transpose([0, 2, 3, 1]).squeeze()
-            x_train = (x_train * 255).astype(np.uint8)
+        trainset = torchvision.datasets.MNIST(root=f"{root}/mnist_data", train=True, download=True,
+                                                transform=torchvision.transforms.ToTensor(),)                                        
+        train_subset, val_subset = torch.utils.data.random_split(trainset, [training_size-validation_size, validation_size])
+        trainloader = torch.utils.data.DataLoader(train_subset, batch_size=8, shuffle=True, num_workers=2)
+        x_train, y_train = extract_data_from_loader(trainloader)
+        x_train = x_train.transpose([0, 2, 3, 1]).squeeze()
+        x_train = (x_train * 255).astype(np.uint8)
 
-            testset = torchvision.datasets.MNIST(root=f"{root}/mnist_data", train=False, download=True,
-                                                  transform=torchvision.transforms.ToTensor())
-            testloader = torch.utils.data.DataLoader(testset, batch_size=test_size, shuffle=False, num_workers=2)
-            x_test, y_test = extract_data_from_loader(testloader)
-            x_test = x_test.transpose([0, 2, 3, 1]).squeeze()
-            x_test = (x_test * 255).astype(np.uint8)
+        valloader = torch.utils.data.DataLoader(val_subset, batch_size=8, shuffle=True, num_workers=2)
+        x_val, y_val = extract_data_from_loader(valloader)
+        x_val = x_val.transpose([0, 2, 3, 1]).squeeze()
+        x_val = (x_val * 255).astype(np.uint8)
 
-        class_names = list(map(str, used_labels))
+        testset = torchvision.datasets.MNIST(root=f"{root}/mnist_data", train=False, download=True,
+                                                transform=torchvision.transforms.ToTensor())                                          
+        testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=2)
+        x_test, y_test = extract_data_from_loader(testloader)
+        x_test = x_test.transpose([0, 2, 3, 1]).squeeze()
+        x_test = (x_test * 255).astype(np.uint8)
+        class_ids = np.unique(y_train)
+        class_names = list(map(str, class_ids))
 
     elif dataset == 'cifar10':
-        if using_tf:
-            (x_train, y_train),(x_test, y_test) = cifar10.load_data() # x_train.shape = 50,000 x 32 x 32 x 3
-            y_train = y_train.reshape([-1])
-            y_test = y_test.reshape([-1])
-        else:
-            trainset = torchvision.datasets.CIFAR10(root=f"{root}/cifar10_data", train=True, download=True,
-                                                transform = torchvision.transforms.ToTensor())
-            trainloader = torch.utils.data.DataLoader(trainset, batch_size=training_size, shuffle=False, num_workers=2)
-            x_train, y_train = extract_data_from_loader(trainloader)
-            x_train = x_train.transpose([0, 2, 3, 1]).squeeze()
-            x_train = (x_train * 255).astype(np.uint8)
+        
+        trainset = torchvision.datasets.CIFAR10(root=f"{root}/cifar10_data", train=True, download=True,
+                                            transform = torchvision.transforms.ToTensor())
+        train_subset, val_subset = torch.utils.data.random_split(trainset, [training_size-validation_size, validation_size])
+        trainloader = torch.utils.data.DataLoader(train_subset, batch_size=8, shuffle=True, num_workers=2)
+        x_train, y_train = extract_data_from_loader(trainloader)
+        x_train = x_train.transpose([0, 2, 3, 1]).squeeze()
+        x_train = (x_train * 255).astype(np.uint8)
 
-            testset = torchvision.datasets.CIFAR10(root=f"{root}/cifar10_data", train=False, download=True,
-                                                transform = torchvision.transforms.ToTensor())
-            testloader = torch.utils.data.DataLoader(testset, batch_size=test_size, shuffle=False, num_workers=2)
-            x_test, y_test = extract_data_from_loader(testloader)
-            x_test = x_test.transpose([0, 2, 3, 1]).squeeze()
-            x_test = (x_test * 255).astype(np.uint8)
+        valloader = torch.utils.data.DataLoader(val_subset, batch_size=8, shuffle=True, num_workers=2)
+        x_val, y_val = extract_data_from_loader(valloader)
+        x_val = x_val.transpose([0, 2, 3, 1]).squeeze()
+        x_val = (x_val * 255).astype(np.uint8)
 
+        testset = torchvision.datasets.CIFAR10(root=f"{root}/cifar10_data", train=False, download=True,
+                                            transform = torchvision.transforms.ToTensor())
+        testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=True, num_workers=2)
+        x_test, y_test = extract_data_from_loader(testloader)
+        x_test = x_test.transpose([0, 2, 3, 1]).squeeze()
+        x_test = (x_test * 255).astype(np.uint8)
+
+        class_ids = np.unique(y_test)
         class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-        class_names = [class_names[idx] for idx in used_labels]
+        class_names = [class_names[idx] for idx in class_ids]
             
         
     else:
         raise ValueError('The variable dataset must either be set to "mnist" or "cifar10"')
 
-    if num_classes != 10:
-        x_train, y_train = cull_unused_classes(x_train, y_train, used_labels)
-        x_test, y_test = cull_unused_classes(x_test, y_test, used_labels)
-
-    # make the class indices consecutive (only if not all 10 digits are chosen in used_labels)
-
-    y_train = make_successive_labels(y_train)
-    y_test = make_successive_labels(y_test)
-
-    original_training_size = x_train.shape[0]
-    original_test_size = x_test.shape[0]
-
-    # take a small random subset of images (size is given in training_size and test_size)
-    training_idxs = np.arange(original_training_size)
-    np.random.shuffle(training_idxs)
-    training_idxs = training_idxs[0:training_size]
-    x_train = x_train[training_idxs]
-    y_train = y_train[training_idxs]
-    y_train = y_train.astype(np.int32)
-
-    test_idxs = np.arange(original_test_size)
-    np.random.shuffle(test_idxs)
-    test_idxs = test_idxs[0:test_size]
-    x_test = x_test[test_idxs]
-    y_test = y_test[test_idxs]
-    y_test = y_test.astype(np.int32)
-
     x_train = x_train.astype( np.float32 )
     x_test = x_test.astype( np.float32 )
 
-    return x_train, y_train, x_test, y_test, class_names
+    return x_train, y_train, x_test, y_test,x_val,y_val, class_names
 
 if __name__ == '__main__':
 
-    x_train, y_train, x_test, y_test, class_names = get_dataset(dataset='cifar10', training_size=600, test_size=100)
-
-    print(x_train.shape)
-
+    x_train, y_train, x_test, y_test,x_val,y_val, class_names = get_dataset(dataset='mnist', training_size=6000,validation_size=1000, test_size=1000)
+    print(class_names)
     # Show one example of each class 
     plt.figure()
     for class_id in range(len(class_names)):
         plt.subplot(2, 5, class_id + 1)
-        plt.imshow(x_train[y_train == class_id][0].astype(np.uint8)) # plotting behaviour of imshow differs between float32 and uint8
+        plt.imshow(x_train[y_train == class_id][0].astype(np.uint8))
         plt.title(class_names[class_id])
     plt.show()    
