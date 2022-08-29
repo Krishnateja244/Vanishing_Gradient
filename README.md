@@ -34,6 +34,8 @@ In the model3 the relu activation function acheived convergence in its weight up
 ![My Image](results/Sigmoid_Model_4.png)
 ![My Image](results/Relu_Model_4.png)
 
+Hence, the depth of the model increases causes vanishing gradient problem is proved and this effect can be reduced by using ReLu activation functions. 
+
 
 
 
