@@ -1,10 +1,14 @@
 # Vanishing_Gradient
 This repository helps in understanding vanishing gradient problem with visualization. 
 
-Model 1 - 1 hidden layers with 20 neurons \\
-Model 2 - 2 hidden layers with 20 neurons each \\
-Model 3 - 3 hidden layers with 20 neurons each \\
-Model 4 - 4 hidden ayers with 20 neurons each \\
+Model 1 - 1 hidden layers with 20 neurons 
+
+Model 2 - 2 hidden layers with 20 neurons each 
+
+Model 3 - 3 hidden layers with 20 neurons each 
+
+Model 4 - 4 hidden ayers with 20 neurons each 
+
 
 The below table shows the accuracy value obtained by models using both activation functions
 ![My Image](results/Accuracy.png)
